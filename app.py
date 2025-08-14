@@ -19,17 +19,17 @@ NOME_DA_SUA_PLANILHA = 'Resultados_COPSOQ'
 # Função para salvar os dados na Planilha Google
 def salvar_dados(lista_de_dados):
     try:
-        creds_b64 = st.secrets["gcp_service_account"]
-        creds_json_str = base64.b64decode(creds_b64).decode("utf-8")
-        creds_json = json.loads(creds_json_str)
-        gc = gspread.service_account_from_dict(creds_json)
+        # AQUI ESTÁ A MUDANÇA: convertemos o segredo para um dicionário normal
+        creds = dict(st.secrets["gcp_service_account"])
+        
+        gc = gspread.service_account_from_dict(creds)
         spreadsheet = gc.open(NOME_DA_SUA_PLANILHA)
         worksheet = spreadsheet.sheet1
         worksheet.append_row(lista_de_dados)
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
-        st.error("Verifique se o nome da planilha está correto e se você compartilhou a planilha com o e-mail da conta de serviço, dando permissão de 'Editor'.")
+        st.error("Verifique as configurações de 'Secrets' no Streamlit Cloud e as permissões da planilha.")
         return False
 
 # Função que define a cor correta para cada resultado (Semáforo)
