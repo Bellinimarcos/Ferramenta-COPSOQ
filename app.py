@@ -33,7 +33,7 @@ def carregar_dados_completos(_gc):
         if len(todos_os_valores) < 2:
             return pd.DataFrame()
 
-        # CORREÇÃO FINAL: Limpa espaços em branco dos nomes das colunas para garantir a correspondência.
+        # Limpa espaços em branco dos nomes das colunas para garantir a correspondência.
         cabecalho = [str(col).strip() for col in todos_os_valores[0]]
         dados = todos_os_valores[1:]
 
@@ -229,7 +229,7 @@ ADMIN_PASSWORD = "sua_senha_aqui"
         st.error("Senha incorreta. Tente novamente.")
         return
 
-    st.success("Acesso concedido!")
+    st.success("Acesso garantido!")
     st.divider()
 
     # --- Carregamento dos Dados ---
@@ -241,7 +241,7 @@ ADMIN_PASSWORD = "sua_senha_aqui"
         return
 
     # --- Dashboard de Análise ---
-    st.header("📊 Dashboard de Resultados Gerais")
+    st.header("📊 Painel de Resultados Gerais")
     total_respostas = len(df)
     st.metric("Total de Respostas Recebidas", f"{total_respostas}")
 
@@ -269,7 +269,7 @@ ADMIN_PASSWORD = "sua_senha_aqui"
     escalas_presentes = [escala for escala in nomes_escalas if escala in df_analise.columns and pd.api.types.is_numeric_dtype(df_analise[escala])]
     
     if not escalas_presentes:
-        st.error("Erro de Análise: Nenhuma coluna de escala com dados numéricos válidos foi encontrada. Verifique se os dados na sua Planilha Google estão corretos.")
+        st.error("Erro de Análise: Nenhuma coluna de escala com dados numéricos válidos foi encontrada. Verifique se os dados em sua Planilha Google estão corretos.")
         return
 
     medias = df_analise[escalas_presentes].mean().sort_values(ascending=False)
