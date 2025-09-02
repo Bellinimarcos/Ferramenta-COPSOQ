@@ -23,23 +23,23 @@ def conectar_gsheet():
 
 @st.cache_data(ttl=60) # Cache dos dados por 60 segundos
 def carregar_dados_completos(_gc):
-    """Carrega todos os dados da planilha de forma robusta e os retorna como um DataFrame do Pandas."""
+    """
+    Carrega todos os dados da planilha de forma robusta usando get_all_records
+    e os retorna como um DataFrame do Pandas.
+    """
     try:
         spreadsheet = _gc.open(NOME_DA_SUA_PLANILHA)
         worksheet = spreadsheet.sheet1
         
-        todos_os_valores = worksheet.get_all_values()
+        # get_all_records é mais robusto para ler dados tabulares
+        dados = worksheet.get_all_records()
         
-        if len(todos_os_valores) < 2:
+        if not dados:
             return pd.DataFrame()
 
-        # Limpa espaços em branco dos nomes das colunas para garantir a correspondência.
-        cabecalho = [str(col).strip() for col in todos_os_valores[0]]
-        dados = todos_os_valores[1:]
-
-        df = pd.DataFrame(dados, columns=cabecalho)
+        df = pd.DataFrame(dados)
         
-        # Remove colunas completamente vazias que o Google Sheets pode adicionar
+        # Garante que não haja colunas com nomes vazios
         df = df.loc[:, (df.columns != '')]
         
         return df
