@@ -24,23 +24,33 @@ def conectar_gsheet():
 @st.cache_data(ttl=60) # Cache dos dados por 60 segundos
 def carregar_dados_completos(_gc):
     """
-    Carrega todos os dados da planilha de forma robusta usando get_all_records
-    e os retorna como um DataFrame do Pandas.
+    Carrega todos os dados da planilha de forma robusta, ignorando o cabeçalho da planilha
+    e aplicando um cabeçalho correto internamente.
     """
     try:
         spreadsheet = _gc.open(NOME_DA_SUA_PLANILHA)
         worksheet = spreadsheet.sheet1
         
-        # get_all_records é mais robusto para ler dados tabulares
-        dados = worksheet.get_all_records()
+        todos_os_valores = worksheet.get_all_values()
         
-        if not dados:
+        # Se houver menos de 2 linhas (só cabeçalho ou vazio), não há dados.
+        if len(todos_os_valores) < 2:
             return pd.DataFrame()
 
-        df = pd.DataFrame(dados)
+        # Pega apenas as linhas de dados, ignorando o cabeçalho da planilha.
+        dados = todos_os_valores[1:]
+
+        # Define o cabeçalho completo e correto aqui no código.
+        cabecalhos_respostas = [f"Resp_Q{i}" for i in range(1, 85)]
+        cabecalhos_escalas = list(motor.definicao_escalas.keys())
+        cabecalho_correto = ["Timestamp"] + cabecalhos_respostas + cabecalhos_escalas
         
-        # Garante que não haja colunas com nomes vazios
-        df = df.loc[:, (df.columns != '')]
+        # Cria o DataFrame, garantindo que o número de colunas corresponda.
+        # Pega o número de colunas da primeira linha de dados para evitar erros.
+        num_cols_data = len(dados[0])
+        cabecalho_para_usar = cabecalho_correto[:num_cols_data]
+        
+        df = pd.DataFrame(dados, columns=cabecalho_para_usar)
         
         return df
         
@@ -63,6 +73,7 @@ def pagina_do_questionario():
             gc = conectar_gsheet()
             spreadsheet = gc.open(NOME_DA_SUA_PLANILHA)
             worksheet = spreadsheet.sheet1
+            # Verifica se a planilha está completamente vazia para adicionar o cabeçalho
             if not worksheet.get_all_values():
                 cabecalhos_respostas = [f"Resp_Q{i}" for i in range(1, 85)]
                 cabecalhos_escalas = list(motor.definicao_escalas.keys())
@@ -252,7 +263,7 @@ ADMIN_PASSWORD = "sua_senha_aqui"
 
     for escala in nomes_escalas:
         if escala in df_analise.columns:
-            # CORREÇÃO DE LOCALIDADE: Substitui vírgula por ponto para garantir a conversão para número.
+            # CORREÇÃO DE LOCALIDADE: Substitui vírgula por ponto.
             if df_analise[escala].dtype == 'object':
                  df_analise[escala] = df_analise[escala].str.replace(',', '.', regex=False)
             
