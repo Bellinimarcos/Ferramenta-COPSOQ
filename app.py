@@ -16,6 +16,7 @@ NOME_DA_SUA_PLANILHA = 'Resultados_COPSOQ'
 def conectar_gsheet():
     """Conecta-se à Planilha Google usando as credenciais do Streamlit Secrets."""
     creds = dict(st.secrets["gcp_service_account"])
+    # CORREÇÃO CRÍTICA: Garante que as quebras de linha na chave privada sejam formatadas corretamente.
     creds["private_key"] = creds["private_key"].replace("\\n", "\n")
     gc = gspread.service_account_from_dict(creds)
     return gc
@@ -27,10 +28,8 @@ def carregar_dados_completos(_gc):
         spreadsheet = _gc.open(NOME_DA_SUA_PLANILHA)
         worksheet = spreadsheet.sheet1
         
-        # Método mais robusto: Pega todos os valores e constrói o DataFrame manualmente
         todos_os_valores = worksheet.get_all_values()
         
-        # Verifica se a planilha tem pelo menos um cabeçalho e uma linha de dados
         if len(todos_os_valores) < 2:
             return pd.DataFrame()
 
@@ -39,8 +38,7 @@ def carregar_dados_completos(_gc):
 
         df = pd.DataFrame(dados, columns=cabecalho)
         
-        # CORREÇÃO CRÍTICA: Remove colunas completamente vazias que o Google Sheets pode adicionar
-        # e que causam o erro de "cabeçalhos duplicados" ('')
+        # Remove colunas completamente vazias que o Google Sheets pode adicionar
         df = df.loc[:, (df.columns != '')]
         
         return df
@@ -56,7 +54,6 @@ def carregar_dados_completos(_gc):
 # --- PÁGINA 1: QUESTIONÁRIO PÚBLICO (O QUE O COLABORADOR VÊ) ---
 # ==============================================================================
 def pagina_do_questionario():
-    # Esta função permanece a mesma da versão anterior.
     if 'respostas' not in st.session_state:
         st.session_state.respostas = {str(i): None for i in range(1, 85)}
 
@@ -250,28 +247,40 @@ ADMIN_PASSWORD = "sua_senha_aqui"
     st.subheader("Média Geral por Escala (0-100)")
     
     nomes_escalas = list(motor.definicao_escalas.keys())
+    df_analise = df.copy()
+
     for escala in nomes_escalas:
-        if escala in df.columns:
-            df[escala] = pd.to_numeric(df[escala], errors='coerce')
+        if escala in df_analise.columns:
+            df_analise[escala] = pd.to_numeric(df_analise[escala], errors='coerce')
     
-    escalas_presentes = [escala for escala in nomes_escalas if escala in df.columns and pd.api.types.is_numeric_dtype(df[escala])]
-    medias = df[escalas_presentes].mean().sort_values(ascending=False)
+    with st.expander("Clique aqui para ver o Diagnóstico de Dados"):
+        st.write("A tabela abaixo mostra os tipos de dados de cada coluna após a tentativa de conversão para número. As colunas das escalas devem ser do tipo `float64`.")
+        st.dataframe(df_analise.dtypes.astype(str).reset_index().rename(columns={'index': 'Coluna', 0: 'Tipo de Dado'}))
+
+    escalas_presentes = [escala for escala in nomes_escalas if escala in df_analise.columns and pd.api.types.is_numeric_dtype(df_analise[escala])]
+    
+    if not escalas_presentes:
+        st.error("Erro de Análise: Nenhuma coluna de escala numérica foi encontrada nos dados.")
+        return
+
+    medias = df_analise[escalas_presentes].mean().sort_values(ascending=False)
     df_medias = medias.reset_index()
     df_medias.columns = ['Escala', 'Pontuação Média']
 
-    st.dataframe(df_medias.style.format({'Pontuação Média': "{:.2f}"}))
+    if not df_medias.empty:
+        st.dataframe(df_medias.style.format({'Pontuação Média': "{:.2f}"}))
 
-    fig = px.bar(
-        df_medias,
-        x='Pontuação Média',
-        y='Escala',
-        orientation='h',
-        title='Pontuação Média para Cada Escala do COPSOQ III',
-        text='Pontuação Média'
-    )
-    fig.update_layout(yaxis={'categoryorder':'total ascending'}, height=800, xaxis_title="Pontuação Média (0-100)", yaxis_title="")
-    fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-    st.plotly_chart(fig, use_container_width=True)
+        fig = px.bar(
+            df_medias,
+            x='Pontuação Média',
+            y='Escala',
+            orientation='h',
+            title='Pontuação Média para Cada Escala do COPSOQ III',
+            text='Pontuação Média'
+        )
+        fig.update_layout(yaxis={'categoryorder':'total ascending'}, height=800, xaxis_title="Pontuação Média (0-100)", yaxis_title="")
+        fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+        st.plotly_chart(fig, use_container_width=True)
 
 # ==============================================================================
 # --- ROTEADOR PRINCIPAL DA APLICAÇÃO ---
