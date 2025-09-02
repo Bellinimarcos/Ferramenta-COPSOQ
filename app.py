@@ -241,8 +241,7 @@ ADMIN_PASSWORD = "sua_senha_aqui"
         return
 
     st.success("Acesso garantido!")
-    st.divider()
-
+    
     # --- Carregamento dos Dados ---
     gc = conectar_gsheet()
     df = carregar_dados_completos(gc)
@@ -250,6 +249,19 @@ ADMIN_PASSWORD = "sua_senha_aqui"
     if df.empty:
         st.warning("Ainda não há dados para analisar ou ocorreu um erro ao carregar a planilha. Assim que houver respostas, os gráficos aparecerão aqui.")
         return
+
+    # --- Funcionalidade de Exportação de Dados ---
+    st.header("📥 Exportar Dados Brutos")
+    st.write("Clique no botão abaixo para descarregar todos os dados recolhidos (respostas e pontuações) num ficheiro CSV, compatível com Excel e outras ferramentas de análise.")
+    
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+       label="Descarregar todos os dados (.csv)",
+       data=csv,
+       file_name='dados_completos_copsoq.csv',
+       mime='text/csv',
+    )
+    st.divider()
 
     # --- Dashboard de Análise ---
     st.header("📊 Painel de Resultados Gerais")
