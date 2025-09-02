@@ -15,6 +15,7 @@ NOME_DA_SUA_PLANILHA = 'Resultados_COPSOQ'
 @st.cache_resource(ttl=600) # Cache do recurso para evitar reconexões constantes
 def conectar_gsheet():
     """Conecta-se à Planilha Google usando as credenciais do Streamlit Secrets."""
+    # Acessa a seção [gcp_service_account] nos secrets
     creds = dict(st.secrets["gcp_service_account"])
     gc = gspread.service_account_from_dict(creds)
     return gc
@@ -39,8 +40,7 @@ def carregar_dados_completos(_gc):
 # --- PÁGINA 1: QUESTIONÁRIO PÚBLICO (O QUE O COLABORADOR VÊ) ---
 # ==============================================================================
 def pagina_do_questionario():
-    # O código desta função é o nosso app.py anterior, com pequenas melhorias.
-
+    # Esta função permanece a mesma da versão anterior.
     if 'respostas' not in st.session_state:
         st.session_state.respostas = {str(i): None for i in range(1, 85)}
 
@@ -184,27 +184,27 @@ def pagina_do_questionario():
 # ==============================================================================
 def pagina_do_administrador():
     st.title("🔑 Painel do Consultor")
+    
+    # --- Lógica de Autenticação Robusta ---
+    # Acessa a senha dentro da seção [admin]
+    try:
+        SENHA_CORRETA = st.secrets["admin"]["ADMIN_PASSWORD"]
+    except (KeyError, FileNotFoundError):
+        st.error("A senha de administrador não foi configurada corretamente na seção [admin] dos 'Secrets'.")
+        st.info("Por favor, verifique a sua configuração de 'Secrets' no Streamlit Cloud.")
+        st.code("""
+# Exemplo de formato correto nos Secrets:
 
-    # --- Lógica de Autenticação com DEBUG ---
-    with st.container(border=True):
-        st.subheader("Diagnóstico de Configuração dos Secrets")
-        st.write("Verificando as chaves encontradas no seu arquivo de 'Secrets'...")
+[gcp_service_account]
+# ...suas chaves do google aqui...
 
-        # Verifica se a chave do admin existe
-        if "ADMIN_PASSWORD" in st.secrets:
-            st.success("✅ A chave 'ADMIN_PASSWORD' foi encontrada nos Secrets.")
-        else:
-            st.error("❌ A chave 'ADMIN_PASSWORD' NÃO foi encontrada nos Secrets.")
-            st.info("Abaixo estão as chaves que o Streamlit conseguiu encontrar. Verifique se há um erro de digitação no nome da chave ('ADMIN_PASSWORD').")
-            # st.secrets.keys() retorna um objeto de chaves, convertemos para lista para exibir
-            st.write(list(st.secrets.keys()))
-            st.warning("Por favor, corrija o nome da chave na sua configuração de 'Secrets' e reinicie o aplicativo ('Reboot app').")
-            return # Para a execução aqui para que o usuário possa focar no erro.
+[admin]
+ADMIN_PASSWORD = "sua_senha_aqui"
+        """)
+        return
 
-    # --- Lógica de Autenticação Padrão ---
     st.header("Acesso à Área Restrita")
     senha_inserida = st.text_input("Por favor, insira a senha de acesso:", type="password", key="admin_password_input")
-    SENHA_CORRETA = st.secrets.get("ADMIN_PASSWORD")
     
     if not senha_inserida:
         st.info("Esta é uma área restrita para análise dos resultados consolidados.")
