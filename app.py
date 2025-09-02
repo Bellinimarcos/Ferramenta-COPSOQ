@@ -17,6 +17,9 @@ def conectar_gsheet():
     """Conecta-se à Planilha Google usando as credenciais do Streamlit Secrets."""
     # Acessa a seção [gcp_service_account] nos secrets
     creds = dict(st.secrets["gcp_service_account"])
+    # CORREÇÃO CRÍTICA: Garante que as quebras de linha na chave privada sejam formatadas corretamente.
+    # O Streamlit Secrets armazena "\n" como um texto literal "\\n". Esta linha corrige isso.
+    creds["private_key"] = creds["private_key"].replace("\\n", "\n")
     gc = gspread.service_account_from_dict(creds)
     return gc
 
