@@ -33,7 +33,8 @@ def carregar_dados_completos(_gc):
         if len(todos_os_valores) < 2:
             return pd.DataFrame()
 
-        cabecalho = todos_os_valores[0]
+        # CORREÇÃO FINAL: Limpa espaços em branco dos nomes das colunas para garantir a correspondência.
+        cabecalho = [str(col).strip() for col in todos_os_valores[0]]
         dados = todos_os_valores[1:]
 
         df = pd.DataFrame(dados, columns=cabecalho)
@@ -251,16 +252,18 @@ ADMIN_PASSWORD = "sua_senha_aqui"
 
     for escala in nomes_escalas:
         if escala in df_analise.columns:
+            # Converte para numérico, forçando erros a virarem NaN (Not a Number)
             df_analise[escala] = pd.to_numeric(df_analise[escala], errors='coerce')
     
     with st.expander("Clique aqui para ver o Diagnóstico de Dados"):
-        st.write("A tabela abaixo mostra os tipos de dados de cada coluna após a tentativa de conversão para número. As colunas das escalas devem ser do tipo `float64`.")
+        st.write("A tabela abaixo mostra os tipos de dados de cada coluna após a tentativa de conversão para número. As colunas das escalas devem ser do tipo `float64` ou `int64`.")
         st.dataframe(df_analise.dtypes.astype(str).reset_index().rename(columns={'index': 'Coluna', 0: 'Tipo de Dado'}))
 
+    # Filtra apenas as colunas que são de fato numéricas para fazer os cálculos
     escalas_presentes = [escala for escala in nomes_escalas if escala in df_analise.columns and pd.api.types.is_numeric_dtype(df_analise[escala])]
     
     if not escalas_presentes:
-        st.error("Erro de Análise: Nenhuma coluna de escala numérica foi encontrada nos dados.")
+        st.error("Erro de Análise: Nenhuma coluna de escala com dados numéricos válidos foi encontrada. Verifique se os dados na sua Planilha Google estão corretos.")
         return
 
     medias = df_analise[escalas_presentes].mean().sort_values(ascending=False)
