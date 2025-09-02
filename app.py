@@ -185,19 +185,34 @@ def pagina_do_questionario():
 def pagina_do_administrador():
     st.title("🔑 Painel do Consultor")
 
-    # --- Lógica de Autenticação ---
-    senha_inserida = st.text_input("Por favor, insira a senha de acesso:", type="password")
-    SENHA_CORRETA = st.secrets.get("ADMIN_PASSWORD")
+    # --- Lógica de Autenticação com DEBUG ---
+    with st.container(border=True):
+        st.subheader("Diagnóstico de Configuração dos Secrets")
+        st.write("Verificando as chaves encontradas no seu arquivo de 'Secrets'...")
 
-    if not SENHA_CORRETA:
-        st.error("A senha de administrador não foi configurada nos 'Secrets' do Streamlit. Por favor, configure-a para continuar.")
+        # Verifica se a chave do admin existe
+        if "ADMIN_PASSWORD" in st.secrets:
+            st.success("✅ A chave 'ADMIN_PASSWORD' foi encontrada nos Secrets.")
+        else:
+            st.error("❌ A chave 'ADMIN_PASSWORD' NÃO foi encontrada nos Secrets.")
+            st.info("Abaixo estão as chaves que o Streamlit conseguiu encontrar. Verifique se há um erro de digitação no nome da chave ('ADMIN_PASSWORD').")
+            # st.secrets.keys() retorna um objeto de chaves, convertemos para lista para exibir
+            st.write(list(st.secrets.keys()))
+            st.warning("Por favor, corrija o nome da chave na sua configuração de 'Secrets' e reinicie o aplicativo ('Reboot app').")
+            return # Para a execução aqui para que o usuário possa focar no erro.
+
+    # --- Lógica de Autenticação Padrão ---
+    st.header("Acesso à Área Restrita")
+    senha_inserida = st.text_input("Por favor, insira a senha de acesso:", type="password", key="admin_password_input")
+    SENHA_CORRETA = st.secrets.get("ADMIN_PASSWORD")
+    
+    if not senha_inserida:
+        st.info("Esta é uma área restrita para análise dos resultados consolidados.")
         return
 
     if senha_inserida != SENHA_CORRETA:
-        if senha_inserida: # Mostra o erro apenas se algo for digitado
-            st.error("Senha incorreta. Tente novamente.")
-        st.info("Esta é uma área restrita para análise dos resultados consolidados.")
-        return # Para a execução se a senha estiver errada
+        st.error("Senha incorreta. Tente novamente.")
+        return
 
     st.success("Acesso concedido!")
     st.divider()
@@ -218,21 +233,17 @@ def pagina_do_administrador():
     st.subheader("Média Geral por Escala (0-100)")
     
     nomes_escalas = list(motor.definicao_escalas.keys())
-    # Garante que as colunas de escala existam e sejam numéricas
     for escala in nomes_escalas:
         if escala in df.columns:
             df[escala] = pd.to_numeric(df[escala], errors='coerce')
     
-    # Calcula as médias apenas das colunas que são numéricas e existem no df
     escalas_presentes = [escala for escala in nomes_escalas if escala in df.columns and pd.api.types.is_numeric_dtype(df[escala])]
     medias = df[escalas_presentes].mean().sort_values(ascending=False)
     df_medias = medias.reset_index()
     df_medias.columns = ['Escala', 'Pontuação Média']
 
-    # Mostra a tabela de médias
     st.dataframe(df_medias.style.format({'Pontuação Média': "{:.2f}"}))
 
-    # Gráfico de Barras Interativo
     fig = px.bar(
         df_medias,
         x='Pontuação Média',
@@ -241,12 +252,7 @@ def pagina_do_administrador():
         title='Pontuação Média para Cada Escala do COPSOQ III',
         text='Pontuação Média'
     )
-    fig.update_layout(
-        yaxis={'categoryorder':'total ascending'},
-        height=800,
-        xaxis_title="Pontuação Média (0-100)",
-        yaxis_title=""
-    )
+    fig.update_layout(yaxis={'categoryorder':'total ascending'}, height=800, xaxis_title="Pontuação Média (0-100)", yaxis_title="")
     fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
     st.plotly_chart(fig, use_container_width=True)
 
@@ -255,7 +261,6 @@ def pagina_do_administrador():
 # ==============================================================================
 def main():
     """Verifica a URL para decidir qual página mostrar."""
-    # Usamos st.query_params que é a forma moderna de ler parâmetros da URL
     params = st.query_params
     
     if params.get("page") == "admin":
