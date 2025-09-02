@@ -252,10 +252,16 @@ ADMIN_PASSWORD = "sua_senha_aqui"
 
     for escala in nomes_escalas:
         if escala in df_analise.columns:
+            # CORREÇÃO DE LOCALIDADE: Substitui vírgula por ponto para garantir a conversão para número.
+            if df_analise[escala].dtype == 'object':
+                 df_analise[escala] = df_analise[escala].str.replace(',', '.', regex=False)
+            
             # Converte para numérico, forçando erros a virarem NaN (Not a Number)
             df_analise[escala] = pd.to_numeric(df_analise[escala], errors='coerce')
     
     with st.expander("Clique aqui para ver o Diagnóstico de Dados"):
+        st.write("Amostra dos dados brutos (primeiras 5 linhas), como foram lidos da planilha:")
+        st.dataframe(df.head())
         st.write("A tabela abaixo mostra os tipos de dados de cada coluna após a tentativa de conversão para número. As colunas das escalas devem ser do tipo `float64` ou `int64`.")
         st.dataframe(df_analise.dtypes.astype(str).reset_index().rename(columns={'index': 'Coluna', 0: 'Tipo de Dado'}))
 
