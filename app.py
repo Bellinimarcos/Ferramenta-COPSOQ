@@ -15,23 +15,36 @@ NOME_DA_SUA_PLANILHA = 'Resultados_COPSOQ'
 @st.cache_resource(ttl=600) # Cache do recurso para evitar reconexões constantes
 def conectar_gsheet():
     """Conecta-se à Planilha Google usando as credenciais do Streamlit Secrets."""
-    # Acessa a seção [gcp_service_account] nos secrets
     creds = dict(st.secrets["gcp_service_account"])
-    # CORREÇÃO CRÍTICA: Garante que as quebras de linha na chave privada sejam formatadas corretamente.
-    # O Streamlit Secrets armazena "\n" como um texto literal "\\n". Esta linha corrige isso.
     creds["private_key"] = creds["private_key"].replace("\\n", "\n")
     gc = gspread.service_account_from_dict(creds)
     return gc
 
 @st.cache_data(ttl=60) # Cache dos dados por 60 segundos
 def carregar_dados_completos(_gc):
-    """Carrega todos os dados da planilha e os retorna como um DataFrame do Pandas."""
+    """Carrega todos os dados da planilha de forma robusta e os retorna como um DataFrame do Pandas."""
     try:
         spreadsheet = _gc.open(NOME_DA_SUA_PLANILHA)
         worksheet = spreadsheet.sheet1
-        dados = worksheet.get_all_records()
-        df = pd.DataFrame(dados)
+        
+        # Método mais robusto: Pega todos os valores e constrói o DataFrame manualmente
+        todos_os_valores = worksheet.get_all_values()
+        
+        # Verifica se a planilha tem pelo menos um cabeçalho e uma linha de dados
+        if len(todos_os_valores) < 2:
+            return pd.DataFrame()
+
+        cabecalho = todos_os_valores[0]
+        dados = todos_os_valores[1:]
+
+        df = pd.DataFrame(dados, columns=cabecalho)
+        
+        # CORREÇÃO CRÍTICA: Remove colunas completamente vazias que o Google Sheets pode adicionar
+        # e que causam o erro de "cabeçalhos duplicados" ('')
+        df = df.loc[:, (df.columns != '')]
+        
         return df
+        
     except gspread.exceptions.SpreadsheetNotFound:
         st.error(f"Erro: A planilha '{NOME_DA_SUA_PLANILHA}' não foi encontrada. Verifique o nome e as permissões de compartilhamento.")
         return pd.DataFrame()
@@ -52,7 +65,7 @@ def pagina_do_questionario():
             gc = conectar_gsheet()
             spreadsheet = gc.open(NOME_DA_SUA_PLANILHA)
             worksheet = spreadsheet.sheet1
-            if len(worksheet.get_all_values()) == 0:
+            if not worksheet.get_all_values():
                 cabecalhos_respostas = [f"Resp_Q{i}" for i in range(1, 85)]
                 cabecalhos_escalas = list(motor.definicao_escalas.keys())
                 cabecalho_completo = ["Timestamp"] + cabecalhos_respostas + cabecalhos_escalas
@@ -65,6 +78,10 @@ def pagina_do_questionario():
 
     def obter_cor_e_significado(nome_escala, valor):
         if valor is None: return "#6c757d", "N/A"
+        try:
+            valor = float(valor)
+        except (ValueError, TypeError):
+            return "#6c757d", "N/A"
         escalas_de_risco = ["Exigências Quantitativas", "Ritmo de Trabalho", "Exigências Cognitivas", "Exigências Emocionais", "Conflitos de Papéis Laborais", "Insegurança Laboral", "Insegurança nas Condições de Trabalho", "Conflito Trabalho-Família", "Problemas de Sono", "Burnout", "Stress", "Sintomas Depressivos"]
         verde = "#28a745"; amarelo = "#ffc107"; vermelho = "#dc3545"
         if valor <= 33.3: cor_padrao = verde
@@ -189,7 +206,6 @@ def pagina_do_administrador():
     st.title("🔑 Painel do Consultor")
     
     # --- Lógica de Autenticação Robusta ---
-    # Acessa a senha dentro da seção [admin]
     try:
         SENHA_CORRETA = st.secrets["admin"]["ADMIN_PASSWORD"]
     except (KeyError, FileNotFoundError):
@@ -197,10 +213,8 @@ def pagina_do_administrador():
         st.info("Por favor, verifique a sua configuração de 'Secrets' no Streamlit Cloud.")
         st.code("""
 # Exemplo de formato correto nos Secrets:
-
 [gcp_service_account]
 # ...suas chaves do google aqui...
-
 [admin]
 ADMIN_PASSWORD = "sua_senha_aqui"
         """)
