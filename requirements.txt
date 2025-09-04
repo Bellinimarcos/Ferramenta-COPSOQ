@@ -2,3 +2,6 @@ streamlit
 gspread
 pandas
 plotly
+fpdf2
+kaleido
+requests
